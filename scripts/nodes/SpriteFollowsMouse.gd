@@ -23,7 +23,6 @@ func _process(_delta):
 
 func _input(event):
     if event is InputEventMouseButton and event.pressed:
-        print("Event: ", event)
         if event.button_index == MOUSE_BUTTON_WHEEL_UP:
             if Input.is_key_pressed(KEY_CTRL):
                 # If CTRL is pressed, scale the sprite
@@ -46,8 +45,6 @@ func rotate_sprite(angle_degrees: float):
         tween.kill()
 
     _target_rotation_degrees = _target_rotation_degrees + angle_degrees
-
-    print("Current rotation: ", rotation_degrees, " | Target rotation: ", _target_rotation_degrees)
 
     # Create new tween
     tween = create_tween()

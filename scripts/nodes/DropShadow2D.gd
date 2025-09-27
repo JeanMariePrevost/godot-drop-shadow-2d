@@ -53,10 +53,8 @@ const SOFTNESS_UNIFORM := "shadow_softness"
 
 # --- Internals ---
 var _tex_dirty := true
-var _xf_dirty := true
 var _vis_dirty := true
 var _soft_dirty := true
-var _mat_cached: Material = null
 
 
 func _ready() -> void:
@@ -77,9 +75,8 @@ func _process(_delta: float) -> void:
         _copy_texture_like()
         _tex_dirty = false
 
-    if mirror_transform and _xf_dirty:
+    if mirror_transform:
         _copy_transform_like()
-        _xf_dirty = false
 
     if mirror_visibility and _vis_dirty:
         visible = source_sprite.visible
@@ -106,7 +103,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 # -- Dirty flags helpers
 func _mark_all_dirty() -> void:
     _tex_dirty = true
-    _xf_dirty = true
     _vis_dirty = true
     _soft_dirty = true
 
@@ -161,6 +157,7 @@ func _copy_transform_like() -> void:
     global_transform = source_sprite.global_transform
     scale = source_sprite.scale
     rotation = source_sprite.rotation
+    print("Source sprite rotation: ", source_sprite.rotation, " | Shadow sprite rotation: ", rotation)
     _sync_initial_z()
 
 
