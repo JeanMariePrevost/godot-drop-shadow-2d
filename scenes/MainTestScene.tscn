@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://djwjg1xfs7spp"]
+[gd_scene load_steps=4 format=3 uid="uid://djwjg1xfs7spp"]
 
 [ext_resource type="Texture2D" uid="uid://cwc6q2o24fpiu" path="res://assets/2d/test_sprite.png" id="1_diby2"]
 [ext_resource type="Script" uid="uid://dttfwm0mro30k" path="res://scripts/nodes/SpriteFollowsMouse.gd" id="2_3sbmb"]
+[ext_resource type="Script" uid="uid://cbh4c363rwphj" path="res://scripts/nodes/DropShadow2D.gd" id="3_5itpt"]
 
 [node name="MainTestScene" type="Node2D"]
 
@@ -9,3 +10,7 @@
 position = Vector2(403, 299)
 texture = ExtResource("1_diby2")
 script = ExtResource("2_3sbmb")
+
+[node name="TestBasicShadow" type="Sprite2D" parent="." node_paths=PackedStringArray("source_sprite")]
+script = ExtResource("3_5itpt")
+source_sprite = NodePath("../TestSprite")
