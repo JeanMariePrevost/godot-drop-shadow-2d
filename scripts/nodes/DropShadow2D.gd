@@ -51,13 +51,47 @@ const SOFTNESS_UNIFORM := "shadow_softness"
 @export var z_bias := -1  # place below source by default
 @export var use_source_sorting := true
 
+@export var editor_jank_hack: bool:  # TODO: Use a proper button with inspector plugin instead of this hack
+    set(value):
+        if Engine.is_editor_hint() and value:
+            print("User triggered a refresh in editor for: ", name)
+            _process(0.0)
+            editor_jank_hack = false  # reset
+
 # --- Internals ---
 var _tex_dirty := true
 var _vis_dirty := true
 var _soft_dirty := true
+var _last_material: Material  # Used to detect materials changes
+var _valid_shader: bool = false
+
+var _initialized: bool = false
 
 
 func _ready() -> void:
+    _initialize()
+
+
+func _notification(_what: int) -> void:
+    if Engine.is_editor_hint() and _initialized == false:
+        _initialize()  # Only force initialization in editor
+
+
+func _initialize() -> void:
+    if _initialized:
+        return
+    _initialized = true
+
+    print("Node: ", name, " is initializing")
+
+    if material == null:
+        # The blur of the shadow comes from a shader, so we need to create a shader material if it's not already set
+        var mat: ShaderMaterial = ShaderMaterial.new()
+        mat.shader = load("res://shaders/BlurShader.gdshader")
+        material = mat
+        print("Node: ", name, " has been given a shader material")
+        validate_shader_signature()
+
     # Keep our own color separate from opacity; combine into modulate at apply time
     _apply_opacity()
     _apply_color_tint()
@@ -67,7 +101,29 @@ func _ready() -> void:
     _mark_all_dirty()
 
 
+func validate_shader_signature() -> void:
+    print("Node: ", name, " is validating shader signature")
+    if material is ShaderMaterial:
+        var sm: ShaderMaterial = material
+        var params: Array = sm.shader.get_shader_uniform_list(false)
+        _valid_shader = false
+        for p in params:
+            if p.name == "shadow_softness":
+                _valid_shader = true
+                _soft_dirty = true
+                break
+    if _valid_shader:
+        print("Node: ", name, " has a valid shader signature")
+    else:
+        print("Node: ", name, " has an invalid shader signature")
+
+
 func _process(_delta: float) -> void:
+    if not _initialized:
+        print("Node: ", name, " was not initialized and has been initialized from _process")
+        _initialize()
+        return
+
     if not is_instance_valid(source_sprite):
         return
 
@@ -82,7 +138,11 @@ func _process(_delta: float) -> void:
         visible = source_sprite.visible
         _vis_dirty = false
 
-    # Always (cheaply) re-apply position offset after transform sync
+    if material != _last_material:
+        _last_material = material
+        validate_shader_signature()
+
+    # Always re-apply position offset after transform sync
     _apply_distance()
 
     # Forward softness to shader if available and dirty
@@ -97,6 +157,8 @@ func _get_configuration_warnings() -> PackedStringArray:
         warnings.append("Assign a Source Sprite2D to cast a shadow.")
     if source_sprite and not (source_sprite is Sprite2D):
         warnings.append("Source must be a Sprite2D (AnimatedSprite2D is not supported in this version).")
+    if material is ShaderMaterial and not _valid_shader:
+        warnings.append("Shader does not expose the shadow_softness uniform.")
     return warnings
 
 
@@ -157,7 +219,7 @@ func _copy_transform_like() -> void:
     global_transform = source_sprite.global_transform
     scale = source_sprite.scale
     rotation = source_sprite.rotation
-    print("Source sprite rotation: ", source_sprite.rotation, " | Shadow sprite rotation: ", rotation)
+    # print("Source sprite rotation: ", source_sprite.rotation, " | Shadow sprite rotation: ", rotation)
     _sync_initial_z()
 
 
@@ -206,7 +268,7 @@ func _forward_softness_to_shader() -> void:
     if material is ShaderMaterial:
         var sm := material as ShaderMaterial
         # Only set if the uniform exists (safe no-op otherwise)
-        if sm.get_shader_parameter_list().has(SOFTNESS_UNIFORM):
+        if sm.shader.get_shader_uniform_list(false).has(SOFTNESS_UNIFORM):
             sm.set_shader_parameter(SOFTNESS_UNIFORM, softness)
 
 

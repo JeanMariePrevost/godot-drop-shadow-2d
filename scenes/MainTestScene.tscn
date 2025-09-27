@@ -6,11 +6,14 @@
 
 [node name="MainTestScene" type="Node2D"]
 
+[node name="TestDropShadow" type="Sprite2D" parent="."]
+modulate = Color(0, 0, 0, 0.5)
+z_index = -1
+position = Vector2(407, 262)
+texture = ExtResource("1_diby2")
+script = ExtResource("3_5itpt")
+
 [node name="TestSprite" type="Sprite2D" parent="."]
-position = Vector2(403, 299)
+position = Vector2(401, 256)
 texture = ExtResource("1_diby2")
 script = ExtResource("2_3sbmb")
-
-[node name="TestBasicShadow" type="Sprite2D" parent="." node_paths=PackedStringArray("source_sprite")]
-script = ExtResource("3_5itpt")
-source_sprite = NodePath("../TestSprite")
