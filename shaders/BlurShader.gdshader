@@ -1,13 +1,15 @@
 shader_type canvas_item;
 
 uniform float softness : hint_range(0.0, 10.0) = 0.2;
+uniform vec3 tint_color : source_color = vec3(1.0, 1.0, 1.0);
+uniform float tint_strength : hint_range(0.0, 1.0) = 0.0;
 
 void fragment() {
     vec2 uv = UV;
     vec2 tex_size = vec2(textureSize(TEXTURE, 0));
     vec2 one_pixel = vec2(1.0) / tex_size;
 
-    // Get the original alpha
+    // Get the original texture alpha
     float original_alpha = texture(TEXTURE, uv).a;
 
     // Skip processing if completely transparent
@@ -47,23 +49,33 @@ void fragment() {
         // Get the original texture color
         vec4 texture_color = texture(TEXTURE, uv);
 
-        // Get the modulated color (what COLOR would be without our shader)
-        vec4 modulated_color = texture_color * COLOR;
+        // COLOR already contains texture * modulate, so we can use it directly
+        vec4 modulated_color = COLOR;
+
+        // Apply tint if strength > 0
+        vec4 final_color;
+        if (tint_strength > 0.0) {
+            // Mix between modulated color and tint color based on strength
+            vec3 tinted_rgb = mix(modulated_color.rgb, tint_color, tint_strength);
+            final_color = vec4(tinted_rgb, modulated_color.a);
+        } else {
+            final_color = modulated_color;
+        }
 
         // If no edge was found
         if (distance_to_edge > 999.0) {
-            COLOR = modulated_color;
+            COLOR = final_color;
         } else {
             // Apply feathering
             float max_feather_distance = softness * 0.1;
             float feather_factor = clamp(distance_to_edge / max_feather_distance, 0.0, 1.0);
             feather_factor = feather_factor * feather_factor; // Quadratic falloff
 
-            // Apply the feathered alpha, preserving the modulated color
-            float feathered_alpha = texture_color.a * feather_factor;
+            // Apply the feathered alpha, preserving the final color
+            float feathered_alpha = original_alpha * feather_factor;
 
-            // Apply modulate color to the feathered result
-            COLOR = vec4(modulated_color.rgb, feathered_alpha * modulated_color.a);
+            // Apply final color with feathered alpha
+            COLOR = vec4(final_color.rgb, feathered_alpha * final_color.a);
         }
     }
 }

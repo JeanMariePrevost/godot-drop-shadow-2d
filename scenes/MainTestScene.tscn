@@ -7,17 +7,19 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_b6jhg"]
 shader = ExtResource("1_lsx0u")
-shader_parameter/softness = 1.774
+shader_parameter/softness = 0.675
+shader_parameter/tint_color = Color(1, 1, 1, 1)
+shader_parameter/tint_strength = 0.0
 
 [node name="MainTestScene" type="Node2D"]
 
-[node name="TestDropShadow" type="Sprite2D" parent="."]
-modulate = Color(0.21, 0.21, 0.21, 1)
+[node name="TestDropShadow" type="Sprite2D" parent="." node_paths=PackedStringArray("source_sprite")]
 z_index = -1
 material = SubResource("ShaderMaterial_b6jhg")
 position = Vector2(407, 262)
 texture = ExtResource("1_diby2")
 script = ExtResource("3_5itpt")
+source_sprite = NodePath("../TestSprite")
 
 [node name="TestSprite" type="Sprite2D" parent="."]
 position = Vector2(401, 256)
