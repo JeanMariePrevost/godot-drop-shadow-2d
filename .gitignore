@@ -1,0 +1,47 @@
+
+# Godot-specific ignores
+.import/
+export.cfg
+export_presets.cfg
+.godot/
+*.import
+
+# Mono-specific ignores
+.mono/
+
+# Non-essential files and uids which can cause a lot of noise in git
+*.tmp
+*.log
+*.uid 
+
+# Exclude all the "meta" stuff that is't directly included in the game
+/non_game/
+
+# Exclude lbgtools addons, which has its own repository
+/addons/lbg_tools/
+/godot_tools/
+
+# Assets files
+*.png
+*.jpg
+*.jpeg
+*.ogg
+*.mp3
+*.ttf
+*.otf
+*.svg
+
+# Exported builds
+/bin/
+/export/
+/build/
+*.exe
+*.apk
+*.pck
+*.zip
+*.x86_64
+*.dmg
+*.ios
+
+# Specific files
+TODO.md

@@ -1,0 +1,10 @@
+{
+  "godotTools.editorPath.godot4": "d:\\Work\\Godot_v4.3-stable_mono_win64\\Godot_v4.3-stable_mono_win64.exe",
+
+  "files.exclude": {
+    "**/.git": true,
+    "**/*.uid": true
+  },
+
+  "editor.semanticHighlighting.enabled": false
+}
