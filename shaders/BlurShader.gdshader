@@ -1,18 +1,69 @@
 shader_type canvas_item;
-render_mode unshaded, blend_mix;
 
-// Softness in texture pixels
-uniform float shadow_softness : hint_range(0.0, 32.0) = 4.0;
+uniform float softness : hint_range(0.0, 10.0) = 0.2;
 
 void fragment() {
-    float a = texture(TEXTURE, UV).a;
+    vec2 uv = UV;
+    vec2 tex_size = vec2(textureSize(TEXTURE, 0));
+    vec2 one_pixel = vec2(1.0) / tex_size;
 
-    if (shadow_softness <= 0.0) {
-        // Hard shadow (just alpha mask)
-        COLOR = vec4(0.0, 0.0, 0.0, a);
+    // Get the original alpha
+    float original_alpha = texture(TEXTURE, uv).a;
+
+    // Skip processing if completely transparent
+    if (original_alpha < 0.01) {
+        COLOR = vec4(0.0);
     } else {
-        float da = fwidth(a);
-        float feather = smoothstep(0.0, da * shadow_softness, a);
-        COLOR = vec4(0.0, 0.0, 0.0, feather);
+        // Simple 4-direction sampling for performance
+        vec2 dirs[4] = vec2[](
+            vec2(1.0, 0.0),
+            vec2(0.0, 1.0),
+            vec2(-1.0, 0.0),
+            vec2(0.0, -1.0)
+        );
+
+        // Calculate distance to nearest transparent pixel (edge)
+        float distance_to_edge = 1000.0;
+
+        // Sample in 4 cardinal directions
+        for (int i = 0; i < 4; i++) {
+            vec2 direction = dirs[i];
+            float step_size = 1.0;
+
+            // Check increasing distances until we find transparency
+            for (int step = 0; step < 20; step++) {
+                vec2 offset = direction * step_size * one_pixel;
+                float sample_alpha = texture(TEXTURE, uv + offset).a;
+
+                if (sample_alpha < 0.5) {
+                    distance_to_edge = min(distance_to_edge, step_size * length(one_pixel));
+                    break;
+                }
+
+                step_size += 1.0;
+            }
+        }
+
+        // Get the original texture color
+        vec4 texture_color = texture(TEXTURE, uv);
+
+        // Get the modulated color (what COLOR would be without our shader)
+        vec4 modulated_color = texture_color * COLOR;
+
+        // If no edge was found
+        if (distance_to_edge > 999.0) {
+            COLOR = modulated_color;
+        } else {
+            // Apply feathering
+            float max_feather_distance = softness * 0.1;
+            float feather_factor = clamp(distance_to_edge / max_feather_distance, 0.0, 1.0);
+            feather_factor = feather_factor * feather_factor; // Quadratic falloff
+
+            // Apply the feathered alpha, preserving the modulated color
+            float feathered_alpha = texture_color.a * feather_factor;
+
+            // Apply modulate color to the feathered result
+            COLOR = vec4(modulated_color.rgb, feathered_alpha * modulated_color.a);
+        }
     }
 }
