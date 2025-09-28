@@ -8,8 +8,8 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_b6jhg"]
 shader = ExtResource("1_b6jhg")
 shader_parameter/erosion = false
-shader_parameter/radius = 15.845
-shader_parameter/quality = 3
+shader_parameter/radius = 6.194
+shader_parameter/quality = 0
 shader_parameter/strength = 1.0
 
 [node name="MainTestScene" type="Node2D"]

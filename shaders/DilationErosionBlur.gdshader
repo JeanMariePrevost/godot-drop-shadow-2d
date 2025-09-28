@@ -5,15 +5,14 @@ render_mode blend_mix, unshaded;
 uniform bool erosion = false; // false = dilating blur, true = erosion
 
 // --- Unified controls ---
-uniform float radius : hint_range(0.0, 64.0) = 8.0;   // max distance in pixels (both modes)
-uniform int   quality : hint_range(1, 3) = 2;         // 1..3 (used by both modes)
-uniform float strength : hint_range(0.0, 1.0) = 0.5;  // blend original ↔ effect
-//   Note: in blur branch, 1.0 = full blur
-//         in erosion branch, 0.5 = full erosion, 1.0+ = overdriven erosion
+uniform float radius   : hint_range(0.0, 64.0) = 8.0;   // max distance in pixels (both modes)
+uniform int   quality  : hint_range(0, 3) = 2;          // 0 = simple fade, 1..3 = sampling
+uniform float strength : hint_range(0.0, 1.0) = 0.5;    // blend original ↔ effect
 
 // --- Erosion-only constants ---
 const float EROSION_CURVE = 15.0;           // fixed steepness for erosion
 const float EROSION_STRENGTH_MULT = 2.0;    // balance blur vs erosion strength
+const float RADIUS_SCALE_Q0 = 1.8; // balance the quality 0 special case's radius effect
 
 // Pass modulate from vertex → fragment so we can apply it once
 varying vec4 modulate;
@@ -53,13 +52,44 @@ float gauss_weight(float d, float sigma) {
 }
 
 void fragment() {
-    // Sample base texture (raw, modulation applied later)
     vec4 base = texture(TEXTURE, UV);
     vec2 px = TEXTURE_PIXEL_SIZE;
 
     vec4 result;
 
-    if (!erosion) {
+	if (quality == 0) {
+	    // -----------------------------
+	    // SIMPLE CIRCULAR TAPER (Option B with adjustment)
+		// Special case since this uses an entirely differnt approach, where "blur" and "erosion" are the same: a feathered alpha
+		// O(1) so scales very well, _and_ is smooth for large sprites and large radius, unlike the other approaches
+	    // -----------------------------
+	    vec2 tex_size = vec2(textureSize(TEXTURE, 0));
+	    vec2 center = vec2(0.5);
+
+	    // Distance from sprite center in pixels
+	    float dist_px = length((UV - center) * tex_size);
+
+	    // Max circular radius in pixels (inscribed circle)
+	    float max_r = 0.5 * min(tex_size.x, tex_size.y);
+
+	    // How far inside the edge this pixel is
+	    float dist_to_edge = max_r - dist_px;
+
+	    // Fade band thickness scaled by constant
+	    float effective_radius = radius * RADIUS_SCALE_Q0;
+
+	    // Fade over the last `effective_radius` pixels
+	    float fade = (effective_radius > 0.0)
+	        ? clamp(dist_to_edge / effective_radius, 0.0, 1.0)
+	        : 1.0;
+
+	    // Shape curve to feel closer to Gaussian
+	    fade = pow(fade, 1.5);
+
+	    float out_a = mix(base.a, base.a * fade, strength);
+	    result = vec4(base.rgb, out_a);
+	}
+    else if (!erosion) {
         // -----------------------------
         // DILATING BLUR
         // -----------------------------
@@ -107,7 +137,8 @@ void fragment() {
         float out_a  = mix(base.a,  blur_a,  strength);
 
         result = vec4(out_rgb, out_a);
-    } else {
+    }
+    else {
         // -----------------------------
         // EROSION
         // -----------------------------
