@@ -9,6 +9,10 @@ uniform float radius   : hint_range(0.0, 64.0) = 8.0;   // max distance in pixel
 uniform int   quality  : hint_range(0, 3) = 2;          // 0 = simple fade, 1..3 = sampling
 uniform float strength : hint_range(0.0, 1.0) = 0.5;    // blend original ↔ effect
 
+// --- Tint controls ---
+uniform vec3  tint_color : source_color = vec3(1.0, 1.0, 1.0);  // color picker for tinting
+uniform float tint_strength : hint_range(0.0, 1.0) = 0.0;       // strength of tint (0.0-1.0)
+
 // --- Erosion-only constants ---
 const float EROSION_CURVE = 15.0;           // fixed steepness for erosion
 const float EROSION_STRENGTH_MULT = 2.0;    // balance blur vs erosion strength
@@ -182,5 +186,10 @@ void fragment() {
     }
 
     // Apply Sprite's modulate once at the end
-    COLOR = result * modulate;
+    vec4 final_result = result * modulate;
+    
+    // Apply tint as straight color addition (not multiplicative)
+    vec3 tinted_rgb = mix(final_result.rgb, tint_color, tint_strength);
+    
+    COLOR = vec4(tinted_rgb, final_result.a);
 }
