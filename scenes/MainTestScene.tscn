@@ -8,11 +8,11 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lsx0u"]
 shader = ExtResource("3_b6jhg")
 shader_parameter/erosion = false
-shader_parameter/radius = 1.36
-shader_parameter/quality = 0
-shader_parameter/strength = 0.5
+shader_parameter/radius = 7.03
+shader_parameter/quality = 3
+shader_parameter/strength = 1.0
 shader_parameter/tint_color = Color(1, 1, 1, 1)
-shader_parameter/tint_strength = 0.435294
+shader_parameter/tint_strength = 1.0
 
 [node name="MainTestScene" type="Node2D"]
 
@@ -30,8 +30,7 @@ texture = ExtResource("1_diby2")
 script = ExtResource("3_5itpt")
 source_sprite = NodePath("..")
 opacity = 1.0
-tint = Color(1, 0.1, 0, 0.435294)
-blur_radius = null
-blur_strength = null
-quality = 0
+blur_radius = 7.03
+blur_strength = 1.0
+quality = 3
 metadata/_custom_type_script = "uid://cbh4c363rwphj"

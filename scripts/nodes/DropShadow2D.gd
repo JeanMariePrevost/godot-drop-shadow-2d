@@ -89,21 +89,9 @@ const QUALITY_UNIFORM_NAME: String = "quality"  # Name of the uniform in the sha
 # --- Internals ---
 var _tex_dirty: bool = true
 var _vis_dirty: bool = true
-var _blur_radius_dirty: bool = true
-var _blur_strength_dirty: bool = true
-var _quality_dirty: bool = true
-var _tint_dirty: bool = true
 var _last_material: Material = null  # Used to detect materials changes
 var _shader: Shader = preload("res://shaders/DilationErosionBlur.gdshader")
 var _initialized: bool = false
-
-# --- Shader Validation ---
-var _shader_has_blur_radius_uniform: bool = false
-var _shader_has_blur_strength_uniform: bool = false
-var _shader_has_quality_uniform: bool = false
-var _shader_has_tint_color_uniform: bool = false
-var _shader_has_tint_strength_uniform: bool = false
-var _valid_shader: bool = false
 
 
 func _ready() -> void:
@@ -120,15 +108,11 @@ func _initialize() -> void:
 		return
 	_initialized = true
 
-	print("Node: ", name, " is initializing")
-
 	if material == null:
 		# The blur of the shadow comes from a shader, so we need to create a shader material if it's not already set
 		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = _shader
 		material = mat
-		print("Node: ", name, " has been given a shader material")
-		validate_shader_signature()
 
 	# Keep our own color separate from opacity; combine into modulate at apply time
 	_apply_opacity()
@@ -136,39 +120,6 @@ func _initialize() -> void:
 	# Nudge initial z based on source, if any
 	_sync_initial_z()
 	_mark_all_dirty()
-
-
-func validate_shader_signature() -> void:
-	print("Node: ", name, " is validating shader signature")
-	if material is ShaderMaterial:
-		var params: Array = material.shader.get_shader_uniform_list(false)
-		print("Node: ", name, " - Found ", params.size(), " uniforms in shader")
-		_shader_has_blur_radius_uniform = false
-		_shader_has_blur_strength_uniform = false
-		_shader_has_quality_uniform = false
-		_shader_has_tint_color_uniform = false
-		_shader_has_tint_strength_uniform = false
-		for p in params:
-			if p.name == BLUR_RADIUS_UNIFORM_NAME:
-				_shader_has_blur_radius_uniform = true
-				_blur_radius_dirty = true
-			if p.name == BLUR_STRENGTH_UNIFORM_NAME:
-				_shader_has_blur_strength_uniform = true
-				_blur_strength_dirty = true
-			if p.name == QUALITY_UNIFORM_NAME:
-				_shader_has_quality_uniform = true
-				_quality_dirty = true
-			if p.name == TINT_COLOR_UNIFORM_NAME:
-				_shader_has_tint_color_uniform = true
-				_tint_dirty = true
-			if p.name == TINT_STRENGTH_UNIFORM_NAME:
-				_shader_has_tint_strength_uniform = true
-				_tint_dirty = true
-	if _shader_has_blur_radius_uniform and _shader_has_quality_uniform:
-		_valid_shader = true
-		print("Node: ", name, " has a valid shader signature")
-	else:
-		print("Node: ", name, " has an invalid shader signature - blur_radius: ", _shader_has_blur_radius_uniform, ", quality: ", _shader_has_quality_uniform)
 
 
 func _process(_delta: float) -> void:
@@ -193,30 +144,18 @@ func _process(_delta: float) -> void:
 
 	if material != _last_material:
 		_last_material = material
-		validate_shader_signature()
 
 	# Always re-apply position offset after transform sync
 	_apply_distance()
 
-	# Forward blur radius to shader if available and dirty
-	if _blur_radius_dirty:
-		_forward_blur_radius_to_shader()
-		_blur_radius_dirty = false
-
-	# Forward blur strength to shader if available and dirty
-	if _blur_strength_dirty:
-		_forward_blur_strength_to_shader()
-		_blur_strength_dirty = false
-
-	# Forward quality to shader if available and dirty
-	if _quality_dirty:
-		_apply_quality_to_shader()
-		_quality_dirty = false
-
-	# Forward tint to shader if available and dirty
-	if _tint_dirty:
-		_apply_tint_to_shader()
-		_tint_dirty = false
+	# Forward all shader parameters directly (no dirty flags needed)
+	if material is ShaderMaterial:
+		var sm := material as ShaderMaterial
+		sm.set_shader_parameter(BLUR_RADIUS_UNIFORM_NAME, blur_radius)
+		sm.set_shader_parameter(BLUR_STRENGTH_UNIFORM_NAME, blur_strength)
+		sm.set_shader_parameter(QUALITY_UNIFORM_NAME, quality)
+		sm.set_shader_parameter(TINT_COLOR_UNIFORM_NAME, Vector3(tint.r, tint.g, tint.b))
+		sm.set_shader_parameter(TINT_STRENGTH_UNIFORM_NAME, tint.a)
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -225,19 +164,13 @@ func _get_configuration_warnings() -> PackedStringArray:
 		warnings.append("Assign a Source Sprite2D to cast a shadow.")
 	if source_sprite and not (source_sprite is Sprite2D):
 		warnings.append("Source must be a Sprite2D (AnimatedSprite2D is not supported in this version).")
-	if material is ShaderMaterial and not _valid_shader:
-		warnings.append("Shader does not expose the required blur uniforms.")
 	return warnings
 
 
-# -- Dirty flags helpers
+# -- Dirty flags helpers (only for texture and visibility)
 func _mark_all_dirty() -> void:
 	_tex_dirty = true
 	_vis_dirty = true
-	_blur_radius_dirty = true
-	_blur_strength_dirty = true
-	_quality_dirty = true
-	_tint_dirty = true
 
 
 # -- Source signals (cheap + robust)
@@ -318,47 +251,6 @@ func _apply_opacity() -> void:
 	modulate = m
 
 
-# -- Shader uniform forwarding (optional)
-func _forward_blur_radius_to_shader() -> void:
-	if material == null:
-		return
-	if material is ShaderMaterial:
-		var sm := material as ShaderMaterial
-		if _shader_has_blur_radius_uniform:
-			sm.set_shader_parameter(BLUR_RADIUS_UNIFORM_NAME, blur_radius)
-
-
-func _forward_blur_strength_to_shader() -> void:
-	if material == null:
-		return
-	if material is ShaderMaterial:
-		var sm := material as ShaderMaterial
-		if _shader_has_blur_strength_uniform:
-			sm.set_shader_parameter(BLUR_STRENGTH_UNIFORM_NAME, blur_strength)
-
-
-func _apply_quality_to_shader() -> void:
-	if material == null:
-		return
-	if material is ShaderMaterial:
-		if _shader_has_quality_uniform:
-			material.set_shader_parameter(QUALITY_UNIFORM_NAME, quality)
-
-
-func _apply_tint_to_shader() -> void:
-	if material == null:
-		return
-	if material is ShaderMaterial:
-		var sm := material as ShaderMaterial
-		if _shader_has_tint_color_uniform:
-			# Extract RGB from tint color
-			var tint_rgb = Vector3(tint.r, tint.g, tint.b)
-			sm.set_shader_parameter(TINT_COLOR_UNIFORM_NAME, tint_rgb)
-		if _shader_has_tint_strength_uniform:
-			# Extract strength from tint alpha
-			sm.set_shader_parameter(TINT_STRENGTH_UNIFORM_NAME, tint.a)
-
-
 # -- Setters
 func set_distance(v: Vector2) -> void:
 	distance = v
@@ -373,26 +265,18 @@ func set_opacity(v: float) -> void:
 
 func set_blur_radius(v: float) -> void:
 	blur_radius = v
-	_blur_radius_dirty = true
-	_forward_blur_radius_to_shader()
 
 
 func set_blur_strength(v: float) -> void:
 	blur_strength = v
-	_blur_strength_dirty = true
-	_forward_blur_strength_to_shader()
 
 
 func set_quality(v: int) -> void:
 	quality = v
-	_quality_dirty = true
-	_apply_quality_to_shader()
 
 
 func set_tint(v: Color) -> void:
 	tint = v
-	_tint_dirty = true
-	_apply_tint_to_shader()
 
 
 # Optional convenience if you want to set tint & opacity together
