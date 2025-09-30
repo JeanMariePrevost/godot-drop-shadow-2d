@@ -27,7 +27,6 @@ class_name DropShadow2D
         _disconnect_source_signals()
         source_sprite = value
         _connect_source_signals()
-        _mark_all_dirty()
 
 # --- Shadow Controls (mostly shader uniforms passthrough) ---
 ## The distance between the shadow and the source sprite
@@ -93,25 +92,23 @@ func force_in_editor_refresh():
 
 
 @export_group("Extras Options")
-## Whether to automatically copy the source sprite's z_index/sorting
-@export var use_source_sorting: bool = true
-## Whether to automatically mirror the source sprite's texture and frame
-@export var mirror_texture: bool = true
-## Whether to automatically mirror the source sprite's transform (position, rotation, scale)
-@export var mirror_transform: bool = true
-## Whether to automatically mirror the source sprite's visibility
-@export var mirror_visibility: bool = true
+## Whether to automatically follow the source sprite's transform (position, rotation, scale)
+## [br]Disable if you want to handle the transform manually
+## [br]Not that distance will have no effect if this is disabled
+@export var sync_transform: bool = true
+## Whether to automatically follow the source sprite's visibility
+## [br]E.g. hide the shadow when the source sprite is not visible
+@export var sync_visibility: bool = true
 ## Whether to automatically follow the source sprite's horizontal and vertical flips
-@export var follow_flips: bool = true  # hflip/vflip
-
-# --- Layering / Sorting ---
-@export var z_bias := -1  # place below source by default
+@export var sync_flip: bool = true  # hflip/vflip
+## Whether to automatically follow the source sprite's z_index/sorting (with a customizable z-offset)
+@export var auto_z_index: bool = true
+## The offset to apply to the z_index of the shadow (e.g. "always 1 below the source sprite")
+@export var z_offset := -1  # place below source by default
 
 # --- Internals ---
-var _tex_dirty: bool = true
-var _vis_dirty: bool = true
 var _last_material: Material = null  # Used to detect materials changes
-var _shader: Shader = preload("res://shaders/DilationErosionBlur.gdshader")
+var _shader: Shader = preload("res://addons/lbg/godottools/dropshadow2d/AdvancedBlur.gdshader")
 var _initialized: bool = false
 
 
@@ -127,6 +124,8 @@ func _initialize() -> void:
     if source_sprite == null and get_parent() is Sprite2D:
         source_sprite = get_parent() as Sprite2D
 
+    update_texture_from_source_sprite()
+
     if material == null:
         # The blur of the shadow comes from a shader, so we need to create a shader material if it's not already set
         var mat: ShaderMaterial = ShaderMaterial.new()
@@ -137,8 +136,7 @@ func _initialize() -> void:
     _apply_opacity()
 
     # Nudge initial z based on source, if any
-    _sync_initial_z()
-    _mark_all_dirty()
+    _sync_z_index()
 
 
 func _process(_delta: float) -> void:
@@ -150,24 +148,19 @@ func _process(_delta: float) -> void:
     if not is_instance_valid(source_sprite):
         return
 
-    if mirror_texture and _tex_dirty:
-        _copy_texture_like()
-        _tex_dirty = false
-
-    if mirror_transform:
-        _copy_transform_like()
-
-    if mirror_visibility and _vis_dirty:
-        visible = source_sprite.visible
-        _vis_dirty = false
+    if sync_transform:
+        _update_transform_based_on_source_sprite()
 
     if material != _last_material:
         _last_material = material
 
-    # Always re-apply position offset after transform sync
-    _apply_distance()
+    if sync_visibility:
+        _on_source_visibility_changed()
 
-    # Forward all shader parameters directly (no dirty flags needed)
+    if auto_z_index:
+        _sync_z_index()
+
+    # Forward all shader parameters directly
     if material is ShaderMaterial:
         var sm := material as ShaderMaterial
         sm.set_shader_parameter(EROSION_UNIFORM_NAME, internal_feather)
@@ -178,6 +171,7 @@ func _process(_delta: float) -> void:
         sm.set_shader_parameter(TINT_STRENGTH_UNIFORM_NAME, tint.a)
 
 
+## This is used to show a warning in the Scene tree/inspector if the source sprite is not assigned
 func _get_configuration_warnings() -> PackedStringArray:
     var warnings: PackedStringArray = []
     if source_sprite == null:
@@ -187,13 +181,7 @@ func _get_configuration_warnings() -> PackedStringArray:
     return warnings
 
 
-# -- Dirty flags helpers (only for texture and visibility)
-func _mark_all_dirty() -> void:
-    _tex_dirty = true
-    _vis_dirty = true
-
-
-# -- Source signals (cheap + robust)
+## Hooks to the source sprite's signals  that are available
 func _connect_source_signals() -> void:
     if not is_instance_valid(source_sprite):
         return
@@ -201,6 +189,8 @@ func _connect_source_signals() -> void:
     source_sprite.tree_exiting.connect(_on_source_tree_exiting, CONNECT_DEFERRED)
 
 
+## Disconnects the source sprite's signals
+## Used when replacing the source sprite with an other
 func _disconnect_source_signals() -> void:
     if not is_instance_valid(source_sprite):
         return
@@ -211,15 +201,16 @@ func _disconnect_source_signals() -> void:
 
 
 func _on_source_visibility_changed() -> void:
-    _vis_dirty = true
+    if sync_visibility:
+        visible = source_sprite.visible
 
 
 func _on_source_tree_exiting() -> void:
     source_sprite = null
 
 
-# -- Copy ops
-func _copy_texture_like() -> void:
+## Updates the texture based on the source sprite's texture, adjusting for padding and centering
+func update_texture_from_source_sprite() -> void:
     if not is_instance_valid(source_sprite):
         return
 
@@ -228,7 +219,7 @@ func _copy_texture_like() -> void:
     hframes = source_sprite.hframes
     vframes = source_sprite.vframes
     frame = source_sprite.frame
-    if follow_flips:
+    if sync_flip:
         flip_h = source_sprite.flip_h
         flip_v = source_sprite.flip_v
 
@@ -260,45 +251,42 @@ func _copy_texture_like() -> void:
         offset = source_sprite.offset
 
 
-func _copy_transform_like() -> void:
+## Updates the transform based on the source sprite's transform
+func _update_transform_based_on_source_sprite() -> void:
     if not is_instance_valid(source_sprite):
         return
 
-    # Check if we're a direct child of the source sprite
+    # Check if we're a descendant of the source sprite
     var is_descendant = source_sprite.is_ancestor_of(self)
 
     if is_descendant:
-        # When we're a direct child, we inherit the parent's scale and rotation automatically
+        # When we're a descendant, we inherit the parent's scale and rotation automatically
         # So we don't copy them - just apply our shadow scale multiplier
         scale = Vector2.ONE * shadow_scale
     else:
-        # When we're not a direct child, copy everything normally and apply shadow scale
+        # When we're not a descendant, copy everything normally and apply shadow scale
         global_transform = source_sprite.global_transform
         scale = source_sprite.scale * shadow_scale
         rotation = source_sprite.rotation
 
-    _sync_initial_z()
+    # Apply the distance offset
+    global_position = source_sprite.global_position + distance
+
+    _sync_z_index()
 
 
-func _sync_initial_z() -> void:
+## Syncs the initial z-index based on the source sprite's z-index
+## This will for example make the shadow "always right below" the source sprite
+func _sync_z_index() -> void:
     if not is_instance_valid(source_sprite):
         return
-    if use_source_sorting:
-        z_index = source_sprite.z_index + z_bias
+    if auto_z_index:
+        z_index = source_sprite.z_index + z_offset
         z_as_relative = source_sprite.z_as_relative
 
 
-# -- Offset / Opacity / Color
-func _apply_distance() -> void:
-    if not is_instance_valid(source_sprite):
-        return
-
-    # apply offset in world space (doesn't rotate with the sprite)
-    global_position = source_sprite.global_position + distance
-
-
 func _apply_opacity() -> void:
-    # Only alpha is controlled here; tint handles RGB.
+    # Only alpha is controlled here; tint handles RGB, and the user can also opt to use regular color modulation directly.
     var m := modulate
     m.a = clamp(opacity, 0.0, 1.0)
     modulate = m
@@ -307,8 +295,9 @@ func _apply_opacity() -> void:
 # -- Setters
 func set_distance(v: Vector2) -> void:
     distance = v
-    # immediate position update
-    _apply_distance()
+    if sync_transform:
+        # immediate position update
+        _update_transform_based_on_source_sprite()
 
 
 func set_shadow_scale(v: float) -> void:
@@ -342,8 +331,6 @@ func set_tint(v: Color) -> void:
 
 func set_texture_padding(v: float) -> void:
     texture_padding = v
-    # Mark texture as dirty to recopy with new padding
-    _tex_dirty = true
 
 
 # Optional convenience if you want to set tint & opacity together

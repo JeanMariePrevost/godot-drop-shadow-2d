@@ -2,8 +2,8 @@
 
 [ext_resource type="Texture2D" uid="uid://cwc6q2o24fpiu" path="res://assets/2d/test_sprite.png" id="1_diby2"]
 [ext_resource type="Script" uid="uid://dttfwm0mro30k" path="res://scripts/nodes/SpriteFollowsMouse.gd" id="2_3sbmb"]
-[ext_resource type="Script" uid="uid://cbh4c363rwphj" path="res://scripts/nodes/DropShadow2D.gd" id="3_5itpt"]
-[ext_resource type="Shader" uid="uid://dqkmm88jwkgot" path="res://shaders/AdvancedBlur.gdshader" id="3_b6jhg"]
+[ext_resource type="Script" uid="uid://cbh4c363rwphj" path="res://addons/lbg/godottools/dropshadow2d/DropShadow2D.gd" id="3_5itpt"]
+[ext_resource type="Shader" uid="uid://dqkmm88jwkgot" path="res://addons/lbg/godottools/dropshadow2d/AdvancedBlur.gdshader" id="3_b6jhg"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_b6jhg"]
 shader = ExtResource("3_b6jhg")
@@ -17,7 +17,7 @@ shader_parameter/tint_strength = 1.0
 [node name="MainTestScene" type="Node2D"]
 
 [node name="TestDropShadowSource" type="Sprite2D" parent="."]
-position = Vector2(380, 256)
+position = Vector2(440, 249)
 scale = Vector2(1.36594, 1.19587)
 texture = ExtResource("1_diby2")
 script = ExtResource("2_3sbmb")
@@ -26,10 +26,10 @@ script = ExtResource("2_3sbmb")
 modulate = Color(1, 1, 1, 0.45)
 z_index = -1
 material = SubResource("ShaderMaterial_b6jhg")
-position = Vector2(2.19629, 5.01727)
+position = Vector2(3.92038, 14.5376)
 scale = Vector2(1.05, 1.05)
 texture = ExtResource("1_diby2")
-region_rect = Rect2(-15.96, -15.96, 100.92, 130.92)
 script = ExtResource("3_5itpt")
 source_sprite = NodePath("..")
+distance = Vector2(5.355, 17.385)
 metadata/_custom_type_script = "uid://cbh4c363rwphj"
