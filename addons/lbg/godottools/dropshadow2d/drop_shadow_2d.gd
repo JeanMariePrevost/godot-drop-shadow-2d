@@ -131,6 +131,8 @@ func _initialize() -> void:
         var mat: ShaderMaterial = ShaderMaterial.new()
         mat.shader = _shader
         material = mat
+    else:
+        material = material.duplicate()  # prevent multiple copied objects from having the same shader material and "working in sync"
 
     # Keep our own color separate from opacity; combine into modulate at apply time
     _apply_opacity()
