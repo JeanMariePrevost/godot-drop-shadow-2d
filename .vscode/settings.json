@@ -9,7 +9,7 @@
   "editor.semanticHighlighting.enabled": false,
 
   "[gdscript]": {
-    "editor.defaultFormatter": "geequlim.godot-tools"
+    "editor.defaultFormatter": "EddieDover.gdscript-formatter-linter"
   },
-  "godotFormatterAndLinter.indentType": "tab"
+  "godotFormatterAndLinter.indentType": "Spaces"
 }

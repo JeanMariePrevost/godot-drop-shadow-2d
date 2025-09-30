@@ -33,5 +33,5 @@ dotnet_diagnostic.IDE0046.severity = suggestion # 'if' statement can be simplifi
 dotnet_diagnostic.IDE1006.severity = warning # Naming rule violation
 
 [*.gd]
-indent_style = tab
+indent_style = space
 indent_size = 4

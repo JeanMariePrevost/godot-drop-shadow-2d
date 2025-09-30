@@ -21,42 +21,42 @@ class_name DropShadow2D
 # --- Source & syncing with source ---
 ## Set this to the Sprite2D you want to create a shadow for.
 @export var source_sprite: Sprite2D:
-	set(value):
-		if source_sprite == value:
-			return
-		_disconnect_source_signals()
-		source_sprite = value
-		_connect_source_signals()
-		_mark_all_dirty()
+    set(value):
+        if source_sprite == value:
+            return
+        _disconnect_source_signals()
+        source_sprite = value
+        _connect_source_signals()
+        _mark_all_dirty()
 
 # --- Shadow Controls (mostly shader uniforms passthrough) ---
 ## The distance between the shadow and the source sprite
 @export var distance: Vector2 = Vector2(3, 6):
-	set = set_distance
+    set = set_distance
 
 ## Scale multiplier for the shadow (1.0 = same size as source, >1.0 = larger shadow, <1.0 = smaller shadow)
 @export_range(0.1, 3.0, 0.01, "or_less", "or_greater") var shadow_scale: float = 1.05:
-	set = set_shadow_scale
+    set = set_shadow_scale
 
 ## The opacity of the shadow (same as using alpha on the modulate property)
 @export_range(0.0, 1.0, 0.01, "or_less", "or_greater") var opacity: float = 0.3:
-	set = set_opacity
+    set = set_opacity
 
 ## Color override for the shadow (RGB=color, Alpha=strength 0.0-1.0)
 @export var tint: Color = Color(0.0, 0.0, 0.0, 1.0):
-	set = set_tint
+    set = set_tint
 const TINT_COLOR_UNIFORM_NAME: String = "tint_color"  # Name of the uniform in the shader itself
 const TINT_STRENGTH_UNIFORM_NAME: String = "tint_strength"  # Name of the uniform in the shader itself
 
 # --- Shader Controls (optional, forwarded if present) ---
 ## The radius of the blur effect in pixels
 @export_range(0, 50, 0.01, "or_less", "or_greater") var blur_radius: float = 4.0:
-	set = set_blur_radius
+    set = set_blur_radius
 const BLUR_RADIUS_UNIFORM_NAME: String = "radius"  # Name of the uniform in the shader itself
 
 ## The strength of the blur effect (0.0 = no blur, 1.0 = full blur)
 @export_range(0.0, 1.0, 0.01, "or_less", "or_greater") var blur_strength: float = 0.5:
-	set = set_blur_strength
+    set = set_blur_strength
 const BLUR_STRENGTH_UNIFORM_NAME: String = "strength"  # Name of the uniform in the shader itself
 
 ## Quality level for blur effects.
@@ -65,7 +65,7 @@ const BLUR_STRENGTH_UNIFORM_NAME: String = "strength"  # Name of the uniform in 
 ## [br]2= Medium quality blur (12 taps)
 ## [br]3= High quality blur (16 taps)
 @export_range(0, 3, 1) var quality: int = 2:
-	set = set_quality
+    set = set_quality
 const QUALITY_UNIFORM_NAME: String = "quality"  # Name of the uniform in the shader itself
 
 ## Click this to force a refresh in editor if the shadow is not showing
@@ -73,9 +73,9 @@ const QUALITY_UNIFORM_NAME: String = "quality"  # Name of the uniform in the sha
 
 
 func force_in_editor_refresh():
-	if Engine.is_editor_hint():
-		print("User triggered a refresh in editor for: ", name)
-		_process(0.0)
+    if Engine.is_editor_hint():
+        print("User triggered a refresh in editor for: ", name)
+        _process(0.0)
 
 
 @export_group("Extras Options")
@@ -102,205 +102,205 @@ var _initialized: bool = false
 
 
 func _ready() -> void:
-	_initialize()
+    _initialize()
 
 
 func _initialize() -> void:
-	if _initialized:
-		return
-	_initialized = true
+    if _initialized:
+        return
+    _initialized = true
 
-	if source_sprite == null and get_parent() is Sprite2D:
-		source_sprite = get_parent() as Sprite2D
+    if source_sprite == null and get_parent() is Sprite2D:
+        source_sprite = get_parent() as Sprite2D
 
-	if material == null:
-		# The blur of the shadow comes from a shader, so we need to create a shader material if it's not already set
-		var mat: ShaderMaterial = ShaderMaterial.new()
-		mat.shader = _shader
-		material = mat
+    if material == null:
+        # The blur of the shadow comes from a shader, so we need to create a shader material if it's not already set
+        var mat: ShaderMaterial = ShaderMaterial.new()
+        mat.shader = _shader
+        material = mat
 
-	# Keep our own color separate from opacity; combine into modulate at apply time
-	_apply_opacity()
+    # Keep our own color separate from opacity; combine into modulate at apply time
+    _apply_opacity()
 
-	# Nudge initial z based on source, if any
-	_sync_initial_z()
-	_mark_all_dirty()
+    # Nudge initial z based on source, if any
+    _sync_initial_z()
+    _mark_all_dirty()
 
 
 func _process(_delta: float) -> void:
-	if not _initialized:
-		print("Node: ", name, " was not initialized and has been initialized from _process")
-		_initialize()
-		return
+    if not _initialized:
+        print("Node: ", name, " was not initialized and has been initialized from _process")
+        _initialize()
+        return
 
-	if not is_instance_valid(source_sprite):
-		return
+    if not is_instance_valid(source_sprite):
+        return
 
-	if mirror_texture and _tex_dirty:
-		_copy_texture_like()
-		_tex_dirty = false
+    if mirror_texture and _tex_dirty:
+        _copy_texture_like()
+        _tex_dirty = false
 
-	if mirror_transform:
-		_copy_transform_like()
+    if mirror_transform:
+        _copy_transform_like()
 
-	if mirror_visibility and _vis_dirty:
-		visible = source_sprite.visible
-		_vis_dirty = false
+    if mirror_visibility and _vis_dirty:
+        visible = source_sprite.visible
+        _vis_dirty = false
 
-	if material != _last_material:
-		_last_material = material
+    if material != _last_material:
+        _last_material = material
 
-	# Always re-apply position offset after transform sync
-	_apply_distance()
+    # Always re-apply position offset after transform sync
+    _apply_distance()
 
-	# Forward all shader parameters directly (no dirty flags needed)
-	if material is ShaderMaterial:
-		var sm := material as ShaderMaterial
-		sm.set_shader_parameter(BLUR_RADIUS_UNIFORM_NAME, blur_radius)
-		sm.set_shader_parameter(BLUR_STRENGTH_UNIFORM_NAME, blur_strength)
-		sm.set_shader_parameter(QUALITY_UNIFORM_NAME, quality)
-		sm.set_shader_parameter(TINT_COLOR_UNIFORM_NAME, Vector3(tint.r, tint.g, tint.b))
-		sm.set_shader_parameter(TINT_STRENGTH_UNIFORM_NAME, tint.a)
+    # Forward all shader parameters directly (no dirty flags needed)
+    if material is ShaderMaterial:
+        var sm := material as ShaderMaterial
+        sm.set_shader_parameter(BLUR_RADIUS_UNIFORM_NAME, blur_radius)
+        sm.set_shader_parameter(BLUR_STRENGTH_UNIFORM_NAME, blur_strength)
+        sm.set_shader_parameter(QUALITY_UNIFORM_NAME, quality)
+        sm.set_shader_parameter(TINT_COLOR_UNIFORM_NAME, Vector3(tint.r, tint.g, tint.b))
+        sm.set_shader_parameter(TINT_STRENGTH_UNIFORM_NAME, tint.a)
 
 
 func _get_configuration_warnings() -> PackedStringArray:
-	var warnings: PackedStringArray = []
-	if source_sprite == null:
-		warnings.append("Assign a Source Sprite2D to cast a shadow.")
-	if source_sprite and not (source_sprite is Sprite2D):
-		warnings.append("Source must be a Sprite2D (AnimatedSprite2D is not supported in this version).")
-	return warnings
+    var warnings: PackedStringArray = []
+    if source_sprite == null:
+        warnings.append("Assign a Source Sprite2D to cast a shadow.")
+    if source_sprite and not (source_sprite is Sprite2D):
+        warnings.append("Source must be a Sprite2D (AnimatedSprite2D is not supported in this version).")
+    return warnings
 
 
 # -- Dirty flags helpers (only for texture and visibility)
 func _mark_all_dirty() -> void:
-	_tex_dirty = true
-	_vis_dirty = true
+    _tex_dirty = true
+    _vis_dirty = true
 
 
 # -- Source signals (cheap + robust)
 func _connect_source_signals() -> void:
-	if not is_instance_valid(source_sprite):
-		return
-	source_sprite.visibility_changed.connect(_on_source_visibility_changed, CONNECT_DEFERRED)
-	source_sprite.tree_exiting.connect(_on_source_tree_exiting, CONNECT_DEFERRED)
+    if not is_instance_valid(source_sprite):
+        return
+    source_sprite.visibility_changed.connect(_on_source_visibility_changed, CONNECT_DEFERRED)
+    source_sprite.tree_exiting.connect(_on_source_tree_exiting, CONNECT_DEFERRED)
 
 
 func _disconnect_source_signals() -> void:
-	if not is_instance_valid(source_sprite):
-		return
-	if source_sprite.visibility_changed.is_connected(_on_source_visibility_changed):
-		source_sprite.visibility_changed.disconnect(_on_source_visibility_changed)
-	if source_sprite.tree_exiting.is_connected(_on_source_tree_exiting):
-		source_sprite.tree_exiting.disconnect(_on_source_tree_exiting)
+    if not is_instance_valid(source_sprite):
+        return
+    if source_sprite.visibility_changed.is_connected(_on_source_visibility_changed):
+        source_sprite.visibility_changed.disconnect(_on_source_visibility_changed)
+    if source_sprite.tree_exiting.is_connected(_on_source_tree_exiting):
+        source_sprite.tree_exiting.disconnect(_on_source_tree_exiting)
 
 
 func _on_source_visibility_changed() -> void:
-	_vis_dirty = true
+    _vis_dirty = true
 
 
 func _on_source_tree_exiting() -> void:
-	source_sprite = null
+    source_sprite = null
 
 
 # -- Copy ops
 func _copy_texture_like() -> void:
-	if not is_instance_valid(source_sprite):
-		return
-	texture = source_sprite.texture
-	centered = source_sprite.centered
-	offset = offset  # keep our own offset; just mirroring flag names
-	hframes = source_sprite.hframes
-	vframes = source_sprite.vframes
-	frame = source_sprite.frame
-	region_enabled = source_sprite.region_enabled
-	if region_enabled:
-		region_rect = source_sprite.region_rect
-	if follow_flips:
-		flip_h = source_sprite.flip_h
-		flip_v = source_sprite.flip_v
+    if not is_instance_valid(source_sprite):
+        return
+    texture = source_sprite.texture
+    centered = source_sprite.centered
+    offset = offset  # keep our own offset; just mirroring flag names
+    hframes = source_sprite.hframes
+    vframes = source_sprite.vframes
+    frame = source_sprite.frame
+    region_enabled = source_sprite.region_enabled
+    if region_enabled:
+        region_rect = source_sprite.region_rect
+    if follow_flips:
+        flip_h = source_sprite.flip_h
+        flip_v = source_sprite.flip_v
 
 
 func _copy_transform_like() -> void:
-	if not is_instance_valid(source_sprite):
-		return
+    if not is_instance_valid(source_sprite):
+        return
 
-	# Check if we're a direct child of the source sprite
-	var is_direct_child = get_parent() == source_sprite
+    # Check if we're a direct child of the source sprite
+    var is_direct_child = get_parent() == source_sprite
 
-	if is_direct_child:
-		# When we're a direct child, we inherit the parent's scale automatically
-		# So we only copy rotation, not scale or global_transform
-		rotation = source_sprite.rotation
-		# Apply shadow scale multiplier to the inherited scale
-		scale = Vector2.ONE * shadow_scale
-	else:
-		# When we're not a direct child, copy everything normally and apply shadow scale
-		global_transform = source_sprite.global_transform
-		scale = source_sprite.scale * shadow_scale
-		rotation = source_sprite.rotation
+    if is_direct_child:
+        # When we're a direct child, we inherit the parent's scale automatically
+        # So we only copy rotation, not scale or global_transform
+        rotation = source_sprite.rotation
+        # Apply shadow scale multiplier to the inherited scale
+        scale = Vector2.ONE * shadow_scale
+    else:
+        # When we're not a direct child, copy everything normally and apply shadow scale
+        global_transform = source_sprite.global_transform
+        scale = source_sprite.scale * shadow_scale
+        rotation = source_sprite.rotation
 
-	_sync_initial_z()
+    _sync_initial_z()
 
 
 func _sync_initial_z() -> void:
-	if not is_instance_valid(source_sprite):
-		return
-	if use_source_sorting:
-		z_index = source_sprite.z_index + z_bias
-		z_as_relative = source_sprite.z_as_relative
+    if not is_instance_valid(source_sprite):
+        return
+    if use_source_sorting:
+        z_index = source_sprite.z_index + z_bias
+        z_as_relative = source_sprite.z_as_relative
 
 
 # -- Offset / Opacity / Color
 func _apply_distance() -> void:
-	if not is_instance_valid(source_sprite):
-		return
+    if not is_instance_valid(source_sprite):
+        return
 
-	# apply offset in world space (doesn’t rotate with the sprite)
-	global_position = source_sprite.global_position + distance
+    # apply offset in world space (doesn’t rotate with the sprite)
+    global_position = source_sprite.global_position + distance
 
 
 func _apply_opacity() -> void:
-	# Only alpha is controlled here; tint handles RGB.
-	var m := modulate
-	m.a = clamp(opacity, 0.0, 1.0)
-	modulate = m
+    # Only alpha is controlled here; tint handles RGB.
+    var m := modulate
+    m.a = clamp(opacity, 0.0, 1.0)
+    modulate = m
 
 
 # -- Setters
 func set_distance(v: Vector2) -> void:
-	distance = v
-	# immediate position update
-	_apply_distance()
+    distance = v
+    # immediate position update
+    _apply_distance()
 
 
 func set_shadow_scale(v: float) -> void:
-	shadow_scale = v
+    shadow_scale = v
 
 
 func set_opacity(v: float) -> void:
-	opacity = v
-	_apply_opacity()
+    opacity = v
+    _apply_opacity()
 
 
 func set_blur_radius(v: float) -> void:
-	blur_radius = v
+    blur_radius = v
 
 
 func set_blur_strength(v: float) -> void:
-	blur_strength = v
+    blur_strength = v
 
 
 func set_quality(v: int) -> void:
-	quality = v
+    quality = v
 
 
 func set_tint(v: Color) -> void:
-	tint = v
+    tint = v
 
 
 # Optional convenience if you want to set tint & opacity together
 func set_shadow_color(c: Color, a: float) -> void:
-	tint = c
-	opacity = a
-	_apply_opacity()
+    tint = c
+    opacity = a
+    _apply_opacity()
