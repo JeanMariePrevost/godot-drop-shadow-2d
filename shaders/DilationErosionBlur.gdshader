@@ -6,7 +6,7 @@ uniform bool erosion = false; // false = dilating blur, true = erosion
 
 // --- Unified controls ---
 uniform float radius   : hint_range(0.0, 64.0) = 8.0;   // max distance in pixels (both modes)
-uniform int   quality  : hint_range(0, 3) = 2;          // 0 = simple fade, 1..3 = sampling
+uniform int   quality  : hint_range(0, 4) = 2;          // 0 = simple fade, 1..4 = sampling
 uniform float strength : hint_range(0.0, 1.0) = 0.5;    // blend original ↔ effect
 
 // --- Tint controls ---
@@ -26,7 +26,15 @@ void vertex() {
 }
 
 // --- Direction sets ---
-// Quality 1: 6 directions (hexagon)
+// First ring: 4 directions (diamond - cardinal directions for cost reduction and better sampling diversity)
+const vec2 DIRS4[4] = vec2[](
+    vec2(1.0, 0.0),   // Right
+    vec2(0.0, 1.0),   // Up  
+    vec2(-1.0, 0.0),  // Left
+    vec2(0.0, -1.0)   // Down
+);
+
+// Second ring: 6 directions (hexagon)
 const vec2 DIRS6[6] = vec2[](
     vec2(1.0, 0.0), vec2(0.5, 0.866),
     vec2(-0.5, 0.866), vec2(-1.0, 0.0),
@@ -47,6 +55,16 @@ const vec2 DIRS16[16] = vec2[](
     vec2(0.0, 1.0), vec2(-0.3827, 0.9239), vec2(-0.7071, 0.7071), vec2(-0.9239, 0.3827),
     vec2(-1.0, 0.0), vec2(-0.9239, -0.3827), vec2(-0.7071, -0.7071), vec2(-0.3827, -0.9239),
     vec2(0.0, -1.0), vec2(0.3827, -0.9239), vec2(0.7071, -0.7071), vec2(0.9239, -0.3827)
+);
+
+// Quality 4: 24 directions (full circle, 15° steps)
+const vec2 DIRS24[24] = vec2[](
+    vec2(1.0, 0.0), vec2(0.9659, 0.2588), vec2(0.8660, 0.5000), vec2(0.7071, 0.7071),
+    vec2(0.5000, 0.8660), vec2(0.2588, 0.9659), vec2(0.0, 1.0), vec2(-0.2588, 0.9659),
+    vec2(-0.5000, 0.8660), vec2(-0.7071, 0.7071), vec2(-0.8660, 0.5000), vec2(-0.9659, 0.2588),
+    vec2(-1.0, 0.0), vec2(-0.9659, -0.2588), vec2(-0.8660, -0.5000), vec2(-0.7071, -0.7071),
+    vec2(-0.5000, -0.8660), vec2(-0.2588, -0.9659), vec2(0.0, -1.0), vec2(0.2588, -0.9659),
+    vec2(0.5000, -0.8660), vec2(0.7071, -0.7071), vec2(0.8660, -0.5000), vec2(0.9659, -0.2588)
 );
 
 // Gaussian helper
@@ -119,43 +137,68 @@ void fragment() {
 	}
     else if (!erosion) {
         // -----------------------------
-        // DILATING BLUR
+        // DILATING BLUR WITH PROGRESSIVE TAPS
         // -----------------------------
         vec3 accum_rgb = base.rgb * base.a;
         float accum_a  = base.a;
         float total_w  = 1.0;
 
-        int ring_count = quality;
-        float ring_step = (quality > 0) ? radius / float(quality) : 0.0;
+        // Dynamic ring counts: Low=2, Medium=3, High=4, Ultra=5 rings
+        int ring_count = quality + 1;  // quality 1→2 rings, quality 2→3 rings, quality 3→4 rings, quality 4→5 rings
+        
+        // Total radius stays the same regardless of ring count
+        float ring_step = radius / float(ring_count);
         float sigma = max(radius * 0.5, 1e-4);
 
-        for (int r = 1; r <= 3; r++) {
+        for (int r = 1; r <= 5; r++) {
             if (r > ring_count) break;
             float dist = ring_step * float(r);
             float w = gauss_weight(dist, sigma);
 
-            if (quality == 1) {
+            // Progressive tap counts: diamond first ring, then hexagon, then higher quality
+            int taps;
+            if (r == 1) {
+                // First ring: 4 taps (diamond) for cost reduction and sampling diversity
+                taps = 4;
+                for (int i = 0; i < 4; i++) {
+                    vec4 s = texture(TEXTURE, UV + DIRS4[i] * px * dist);
+                    accum_rgb += s.rgb * s.a * w;
+                    accum_a   += s.a * w;
+                }
+            } else if (r == 2) {
+                // Second ring: 6 taps (hexagon) for performance
+                taps = 6;
                 for (int i = 0; i < 6; i++) {
                     vec4 s = texture(TEXTURE, UV + DIRS6[i] * px * dist);
                     accum_rgb += s.rgb * s.a * w;
                     accum_a   += s.a * w;
                 }
-                total_w += 6.0 * w;
-            } else if (quality == 2) {
+            } else if (r == 3) {
+                // Third ring: 12 taps (dodecagon) for better quality
+                taps = 12;
                 for (int i = 0; i < 12; i++) {
                     vec4 s = texture(TEXTURE, UV + DIRS12[i] * px * dist);
                     accum_rgb += s.rgb * s.a * w;
                     accum_a   += s.a * w;
                 }
-                total_w += 12.0 * w;
-            } else {
+            } else if (r == 4) {
+                // Fourth ring: 16 taps 
+                taps = 16;
                 for (int i = 0; i < 16; i++) {
                     vec4 s = texture(TEXTURE, UV + DIRS16[i] * px * dist);
                     accum_rgb += s.rgb * s.a * w;
                     accum_a   += s.a * w;
                 }
-                total_w += 16.0 * w;
+            } else {
+                // Fifth ring: 24 taps 
+                taps = 24;
+                for (int i = 0; i < 24; i++) {
+                    vec4 s = texture(TEXTURE, UV + DIRS24[i] * px * dist);
+                    accum_rgb += s.rgb * s.a * w;
+                    accum_a   += s.a * w;
+                }
             }
+            total_w += float(taps) * w;
         }
 
         vec3 blur_rgb = accum_rgb / max(accum_a, 1e-4);
@@ -168,9 +211,9 @@ void fragment() {
     }
     else {
         // -----------------------------
-        // EROSION
+        // EROSION (updated to use diamond for first ring)
         // -----------------------------
-        int ang = (quality == 1) ? 6 : ((quality == 2) ? 12 : 16);
+        int ang = (quality == 1) ? 4 : ((quality == 2) ? 6 : ((quality == 3) ? 12 : ((quality == 4) ? 16 : 24)));
         int radial_steps = quality * 4;
 
         float accum = base.a;
@@ -182,16 +225,24 @@ void fragment() {
 
             float dir_accum = 0.0;
             if (quality == 1) {
+                for (int i = 0; i < 4; i++) {
+                    dir_accum += texture(TEXTURE, UV + DIRS4[i] * px * dist).a;
+                }
+            } else if (quality == 2) {
                 for (int i = 0; i < 6; i++) {
                     dir_accum += texture(TEXTURE, UV + DIRS6[i] * px * dist).a;
                 }
-            } else if (quality == 2) {
+            } else if (quality == 3) {
                 for (int i = 0; i < 12; i++) {
                     dir_accum += texture(TEXTURE, UV + DIRS12[i] * px * dist).a;
                 }
-            } else {
+            } else if (quality == 4) {
                 for (int i = 0; i < 16; i++) {
                     dir_accum += texture(TEXTURE, UV + DIRS16[i] * px * dist).a;
+                }
+            } else {
+                for (int i = 0; i < 24; i++) {
+                    dir_accum += texture(TEXTURE, UV + DIRS24[i] * px * dist).a;
                 }
             }
 
@@ -213,6 +264,7 @@ void fragment() {
     vec4 final_result = result * modulate;
     
     // Apply tint as straight color addition (not multiplicative)
+    // Tint is applied on top of the fully modulated result
     vec3 tinted_rgb = mix(final_result.rgb, tint_color, tint_strength);
     
     COLOR = vec4(tinted_rgb, final_result.a);
