@@ -1,4 +1,4 @@
-# DropShadow2D – Godot Addon
+# DropShadow2D - Godot Addon
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE) [![Godot 4.4+](https://img.shields.io/badge/Godot-4.4%2B-blue.svg)](https://godotengine.org/)
 
 **DropShadow2D** is an easy to use custom node for Godot that adds dynamic 2D drop shadows to sprites.  
@@ -14,15 +14,15 @@ It internally uses a second Sprite2D with shader-based blur effect to create var
 - Adjustable blur radius, strength, color, quality, and more
 - Option to have the shadow automatically follow the source sprite
 
-<img src="images/drop_shadow_2d_demo.gif" alt="Demo">
+![Demo](images/drop_shadow_2d_demo.gif)
 
 ---
 
 ## Installation
-1. Get `drop-shadow-2d-x.x..zip` from the [latest release](https://github.com/JeanMariePrevost/godot-drop-shadow-2d/releases/latest)
+1. Get `drop-shadow-2d-x.x.x.zip` from the [latest release](https://github.com/JeanMariePrevost/godot-drop-shadow-2d/releases/latest)
  (or clone the repo).
 2. Extract archive at the root of your Godot project. 
-You should now have `<project>/addons/lbg/godottools/dropshadow2d/` 
+   - You should now have `<project>/addons/lbg/godottools/dropshadow2d/` 
 3. In the Godot Editor: go to **Project > Project Settings > Plugins** and enable **DropShadow2D**.  
 4. You can now add a **DropShadow2D** node just like any built-in node.
 
@@ -30,7 +30,7 @@ You should now have `<project>/addons/lbg/godottools/dropshadow2d/`
 
 ## Usage
 1. Add a **DropShadow2D** node to your scene.  
-2. If you added it directly to a Sprite2D, it will automatically be assigned to it. Otherwise, assign a sparite to the node via the inspector.
+2. If you added it directly to a Sprite2D, it will automatically be assigned to it. Otherwise, assign a sprite to the node via the inspector.
 3. Adjust properties such as:
    - **Radius**: shadow blur distance  
    - **Strength**: blend intensity  
@@ -42,7 +42,7 @@ Note: If you do not immediately see the shadow in the editor, try saving and rel
 ---
 
 ## License
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 

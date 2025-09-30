@@ -1,35 +1,137 @@
-[gd_scene load_steps=6 format=3 uid="uid://djwjg1xfs7spp"]
+[gd_scene load_steps=10 format=3 uid="uid://djwjg1xfs7spp"]
 
 [ext_resource type="Texture2D" uid="uid://cwc6q2o24fpiu" path="res://assets/2d/test_sprite.png" id="1_diby2"]
 [ext_resource type="Script" uid="uid://dttfwm0mro30k" path="res://scripts/nodes/SpriteFollowsMouse.gd" id="2_3sbmb"]
-[ext_resource type="Script" uid="uid://cbh4c363rwphj" path="res://addons/lbg/godottools/dropshadow2d/DropShadow2D.gd" id="3_5itpt"]
 [ext_resource type="Shader" uid="uid://dqkmm88jwkgot" path="res://addons/lbg/godottools/dropshadow2d/advanced_blur.gdshader" id="3_b6jhg"]
+[ext_resource type="Script" uid="uid://d4rp5v2qqcuu" path="res://addons/lbg/godottools/dropshadow2d/drop_shadow_2d.gd" id="4_b6jhg"]
+[ext_resource type="Texture2D" uid="uid://dpqc3ldne0ptv" path="res://assets/2d/boy_jumping.png" id="5_lsx0u"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_b6jhg"]
+shader = ExtResource("3_b6jhg")
+shader_parameter/erosion = false
+shader_parameter/radius = 7.25
+shader_parameter/quality = 4
+shader_parameter/strength = 1.0
+shader_parameter/tint_color = Color(1, 1, 1, 1)
+shader_parameter/tint_strength = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dfg6i"]
+shader = ExtResource("3_b6jhg")
+shader_parameter/erosion = false
+shader_parameter/radius = 10.51
+shader_parameter/quality = 2
+shader_parameter/strength = 0.95
+shader_parameter/tint_color = Color(1, 1, 1, 1)
+shader_parameter/tint_strength = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8tucf"]
 shader = ExtResource("3_b6jhg")
 shader_parameter/erosion = false
 shader_parameter/radius = 4.0
 shader_parameter/quality = 2
 shader_parameter/strength = 0.5
 shader_parameter/tint_color = Color(1, 1, 1, 1)
+shader_parameter/tint_strength = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8otfk"]
+shader = ExtResource("3_b6jhg")
+shader_parameter/erosion = false
+shader_parameter/radius = 13.32
+shader_parameter/quality = 2
+shader_parameter/strength = 0.0
+shader_parameter/tint_color = Color(1, 1, 1, 1)
 shader_parameter/tint_strength = 1.0
 
 [node name="MainTestScene" type="Node2D"]
 
 [node name="TestDropShadowSource" type="Sprite2D" parent="."]
-position = Vector2(440, 249)
+visible = false
+position = Vector2(531, 239)
 scale = Vector2(1.36594, 1.19587)
 texture = ExtResource("1_diby2")
 script = ExtResource("2_3sbmb")
 
 [node name="DropShadow2D" type="Sprite2D" parent="TestDropShadowSource" node_paths=PackedStringArray("source_sprite")]
-modulate = Color(1, 1, 1, 0.45)
+visible = false
+modulate = Color(1, 1, 1, 0.58)
 z_index = -1
 material = SubResource("ShaderMaterial_b6jhg")
-position = Vector2(3.92038, 14.5376)
-scale = Vector2(1.05, 1.05)
+position = Vector2(5.73233, 14.0274)
+scale = Vector2(1.22, 1.22)
 texture = ExtResource("1_diby2")
-script = ExtResource("3_5itpt")
+region_enabled = true
+region_rect = Rect2(-15.96, -15.96, 100.92, 130.92)
+script = ExtResource("4_b6jhg")
 source_sprite = NodePath("..")
-distance = Vector2(5.355, 17.385)
-metadata/_custom_type_script = "uid://cbh4c363rwphj"
+distance = Vector2(7.83, 16.775)
+shadow_scale = 1.22
+opacity = 0.58
+blur_radius = 7.25
+blur_strength = 1.0
+quality = 4
+texture_padding = 0.19
+metadata/_custom_type_script = "uid://d4rp5v2qqcuu"
+
+[node name="BoyJumping" type="Sprite2D" parent="."]
+position = Vector2(518, 341)
+scale = Vector2(0.903944, 0.791396)
+texture = ExtResource("5_lsx0u")
+
+[node name="DropShadow2D" type="Sprite2D" parent="BoyJumping" node_paths=PackedStringArray("source_sprite")]
+modulate = Color(1, 1, 1, 0.36)
+z_index = -1
+material = SubResource("ShaderMaterial_dfg6i")
+position = Vector2(3.31879, 24.3052)
+scale = Vector2(1.05, 1.05)
+texture = ExtResource("5_lsx0u")
+script = ExtResource("4_b6jhg")
+source_sprite = NodePath("..")
+distance = Vector2(3, 19.235)
+opacity = 0.36
+blur_radius = 10.51
+blur_strength = 0.95
+metadata/_custom_type_script = "uid://d4rp5v2qqcuu"
+
+[node name="BoyJumping3" type="Sprite2D" parent="."]
+position = Vector2(914, 341)
+scale = Vector2(0.903944, 0.791396)
+texture = ExtResource("5_lsx0u")
+
+[node name="DropShadow2D" type="Sprite2D" parent="BoyJumping3" node_paths=PackedStringArray("source_sprite")]
+modulate = Color(1, 1, 1, 0.45)
+z_index = -1
+material = SubResource("ShaderMaterial_8tucf")
+position = Vector2(-7.20178, -7.48047)
+scale = Vector2(1.05, 1.05)
+texture = ExtResource("5_lsx0u")
+script = ExtResource("4_b6jhg")
+source_sprite = NodePath("..")
+distance = Vector2(-6.51, -5.92)
+tint = Color(0, 0, 0, 0)
+metadata/_custom_type_script = "uid://d4rp5v2qqcuu"
+
+[node name="BoyJumping4" type="Sprite2D" parent="."]
+position = Vector2(710, 341)
+scale = Vector2(0.903944, 0.791396)
+texture = ExtResource("5_lsx0u")
+
+[node name="DropShadow2D" type="Sprite2D" parent="BoyJumping4" node_paths=PackedStringArray("source_sprite")]
+modulate = Color(1, 1, 1, 0.45)
+z_index = -1
+material = SubResource("ShaderMaterial_8otfk")
+position = Vector2(-0.0940552, 0)
+scale = Vector2(1.16, 1.16)
+texture = ExtResource("5_lsx0u")
+script = ExtResource("4_b6jhg")
+source_sprite = NodePath("..")
+distance = Vector2(-0.085, 0)
+shadow_scale = 1.16
+tint = Color(1, 1, 1, 1)
+blur_radius = 13.32
+blur_strength = 0.0
+metadata/_custom_type_script = "uid://d4rp5v2qqcuu"
+
+[node name="BoyJumping2" type="Sprite2D" parent="."]
+position = Vector2(327, 341)
+scale = Vector2(0.903944, 0.791396)
+texture = ExtResource("5_lsx0u")
