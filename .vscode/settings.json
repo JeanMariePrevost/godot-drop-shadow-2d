@@ -6,5 +6,10 @@
     "**/*.uid": true
   },
 
-  "editor.semanticHighlighting.enabled": false
+  "editor.semanticHighlighting.enabled": false,
+
+  "[gdscript]": {
+    "editor.defaultFormatter": "geequlim.godot-tools"
+  },
+  "godotFormatterAndLinter.indentType": "tab"
 }
