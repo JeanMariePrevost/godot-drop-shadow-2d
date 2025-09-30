@@ -49,6 +49,12 @@ const TINT_COLOR_UNIFORM_NAME: String = "tint_color"  # Name of the uniform in t
 const TINT_STRENGTH_UNIFORM_NAME: String = "tint_strength"  # Name of the uniform in the shader itself
 
 # --- Shader Controls (optional, forwarded if present) ---
+## Erosion creates an "internal feathering" effect, making the shadow smaller.
+## [br]Useful for when you have no breathing room on the edge of the sprite for the blur.
+@export var erosion_mode: bool = false:
+    set = set_erosion_mode
+const EROSION_UNIFORM_NAME: String = "erosion"  # Name of the uniform in the shader itself
+
 ## The radius of the blur effect in pixels
 @export_range(0, 50, 0.01, "or_less", "or_greater") var blur_radius: float = 4.0:
     set = set_blur_radius
@@ -61,10 +67,11 @@ const BLUR_STRENGTH_UNIFORM_NAME: String = "strength"  # Name of the uniform in 
 
 ## Quality level for blur effects.
 ## [br]0=Simple fade (fixed cost, scales well)
-## [br]1= Low quality blur (6 taps)
-## [br]2= Medium quality blur (12 taps)
-## [br]3= High quality blur (16 taps)
-@export_range(0, 3, 1) var quality: int = 2:
+## [br]1=Low quality blur (2 rings: 4+6 taps)
+## [br]2=Medium quality blur (3 rings: 4+6+12 taps)
+## [br]3=High quality blur (4 rings: 4+6+12+16 taps)
+## [br]4=Ultra quality blur (5 rings: 4+6+12+16+24 taps)
+@export_range(0, 4, 1) var quality: int = 2:
     set = set_quality
 const QUALITY_UNIFORM_NAME: String = "quality"  # Name of the uniform in the shader itself
 
@@ -156,6 +163,7 @@ func _process(_delta: float) -> void:
     # Forward all shader parameters directly (no dirty flags needed)
     if material is ShaderMaterial:
         var sm := material as ShaderMaterial
+        sm.set_shader_parameter(EROSION_UNIFORM_NAME, erosion_mode)
         sm.set_shader_parameter(BLUR_RADIUS_UNIFORM_NAME, blur_radius)
         sm.set_shader_parameter(BLUR_STRENGTH_UNIFORM_NAME, blur_strength)
         sm.set_shader_parameter(QUALITY_UNIFORM_NAME, quality)
@@ -256,7 +264,7 @@ func _apply_distance() -> void:
     if not is_instance_valid(source_sprite):
         return
 
-    # apply offset in world space (doesn’t rotate with the sprite)
+    # apply offset in world space (doesn't rotate with the sprite)
     global_position = source_sprite.global_position + distance
 
 
@@ -281,6 +289,10 @@ func set_shadow_scale(v: float) -> void:
 func set_opacity(v: float) -> void:
     opacity = v
     _apply_opacity()
+
+
+func set_erosion_mode(v: bool) -> void:
+    erosion_mode = v
 
 
 func set_blur_radius(v: float) -> void:
