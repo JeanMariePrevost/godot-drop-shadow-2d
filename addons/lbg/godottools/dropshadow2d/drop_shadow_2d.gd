@@ -108,7 +108,7 @@ func force_in_editor_refresh():
 
 # --- Internals ---
 var _last_material: Material = null  # Used to detect materials changes
-var _shader: Shader = preload("res://addons/lbg/godottools/dropshadow2d/AdvancedBlur.gdshader")
+var _shader: Shader = preload("res://addons/lbg/godottools/dropshadow2d/advanced_blur.gdshader")
 var _initialized: bool = false
 
 
