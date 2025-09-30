@@ -5,32 +5,31 @@
 [ext_resource type="Script" uid="uid://cbh4c363rwphj" path="res://scripts/nodes/DropShadow2D.gd" id="3_5itpt"]
 [ext_resource type="Shader" uid="uid://dqkmm88jwkgot" path="res://shaders/DilationErosionBlur.gdshader" id="3_b6jhg"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_lsx0u"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_b6jhg"]
 shader = ExtResource("3_b6jhg")
 shader_parameter/erosion = false
-shader_parameter/radius = 7.03
-shader_parameter/quality = 3
-shader_parameter/strength = 1.0
+shader_parameter/radius = 4.0
+shader_parameter/quality = 2
+shader_parameter/strength = 0.5
 shader_parameter/tint_color = Color(1, 1, 1, 1)
 shader_parameter/tint_strength = 1.0
 
 [node name="MainTestScene" type="Node2D"]
 
 [node name="TestDropShadowSource" type="Sprite2D" parent="."]
-position = Vector2(401, 256)
+position = Vector2(380, 256)
+scale = Vector2(1.36594, 1.19587)
 texture = ExtResource("1_diby2")
 script = ExtResource("2_3sbmb")
 
 [node name="DropShadow2D" type="Sprite2D" parent="TestDropShadowSource" node_paths=PackedStringArray("source_sprite")]
-modulate = Color(0, 0, 0, 1)
+modulate = Color(1, 1, 1, 0.45)
 z_index = -1
-material = SubResource("ShaderMaterial_lsx0u")
-position = Vector2(6, 6)
+material = SubResource("ShaderMaterial_b6jhg")
+position = Vector2(2.19629, 5.01727)
+scale = Vector2(1.05, 1.05)
 texture = ExtResource("1_diby2")
+region_rect = Rect2(-15.96, -15.96, 100.92, 130.92)
 script = ExtResource("3_5itpt")
 source_sprite = NodePath("..")
-opacity = 1.0
-blur_radius = 7.03
-blur_strength = 1.0
-quality = 3
 metadata/_custom_type_script = "uid://cbh4c363rwphj"

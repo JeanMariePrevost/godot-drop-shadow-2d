@@ -39,20 +39,22 @@ class_name DropShadow2D
     set = set_shadow_scale
 
 ## The opacity of the shadow (same as using alpha on the modulate property)
-@export_range(0.0, 1.0, 0.01, "or_less", "or_greater") var opacity: float = 0.3:
+@export_range(0.0, 1.0, 0.01, "or_less", "or_greater") var opacity: float = 0.45:
     set = set_opacity
 
-## Color override for the shadow (RGB=color, Alpha=strength 0.0-1.0)
+## Color override for the shadow
+## [br]Unlike Modulate which multiplies the color, this directly sets the color.
+## [br]Useful to make the shadow a single color, e.g. all grey.
+## [br]Alpha channel defines the strength of the tint.
 @export var tint: Color = Color(0.0, 0.0, 0.0, 1.0):
     set = set_tint
 const TINT_COLOR_UNIFORM_NAME: String = "tint_color"  # Name of the uniform in the shader itself
 const TINT_STRENGTH_UNIFORM_NAME: String = "tint_strength"  # Name of the uniform in the shader itself
 
 # --- Shader Controls (optional, forwarded if present) ---
-## Erosion creates an "internal feathering" effect, making the shadow smaller.
-## [br]Useful for when you have no breathing room on the edge of the sprite for the blur.
-@export var erosion_mode: bool = false:
-    set = set_erosion_mode
+## Turns the blur into an internal feathering effect, making the blurring "erode" the texture instead of dilate it.
+@export var internal_feather: bool = false:
+    set = set_internal_feather
 const EROSION_UNIFORM_NAME: String = "erosion"  # Name of the uniform in the shader itself
 
 ## The radius of the blur effect in pixels
@@ -74,6 +76,11 @@ const BLUR_STRENGTH_UNIFORM_NAME: String = "strength"  # Name of the uniform in 
 @export_range(0, 4, 1) var quality: int = 2:
     set = set_quality
 const QUALITY_UNIFORM_NAME: String = "quality"  # Name of the uniform in the shader itself
+
+## Relative padding around the texture (0.0 = no padding, 0.2 = 20% more space around edges).
+## [br]Useful if the blur effect is getting clipped by the edge of the texture.
+@export_range(0.0, 1.0, 0.01, "or_less", "or_greater") var texture_padding: float = 0.0:
+    set = set_texture_padding
 
 ## Click this to force a refresh in editor if the shadow is not showing
 @export_tool_button("Force Refresh (Debug)", "Reload") var force_refresh_action: Callable = force_in_editor_refresh
@@ -163,7 +170,7 @@ func _process(_delta: float) -> void:
     # Forward all shader parameters directly (no dirty flags needed)
     if material is ShaderMaterial:
         var sm := material as ShaderMaterial
-        sm.set_shader_parameter(EROSION_UNIFORM_NAME, erosion_mode)
+        sm.set_shader_parameter(EROSION_UNIFORM_NAME, internal_feather)
         sm.set_shader_parameter(BLUR_RADIUS_UNIFORM_NAME, blur_radius)
         sm.set_shader_parameter(BLUR_STRENGTH_UNIFORM_NAME, blur_strength)
         sm.set_shader_parameter(QUALITY_UNIFORM_NAME, quality)
@@ -215,18 +222,42 @@ func _on_source_tree_exiting() -> void:
 func _copy_texture_like() -> void:
     if not is_instance_valid(source_sprite):
         return
+
+    # Copy basic texture properties
     texture = source_sprite.texture
-    centered = source_sprite.centered
-    offset = offset  # keep our own offset; just mirroring flag names
     hframes = source_sprite.hframes
     vframes = source_sprite.vframes
     frame = source_sprite.frame
-    region_enabled = source_sprite.region_enabled
-    if region_enabled:
-        region_rect = source_sprite.region_rect
     if follow_flips:
         flip_h = source_sprite.flip_h
         flip_v = source_sprite.flip_v
+
+    # Handle padding and centering
+    if texture_padding > 0.0:
+        # Get the original texture size
+        var original_size = texture.get_size()
+
+        # Calculate padding amount based on average of width and height
+        var avg_dimension = (original_size.x + original_size.y) * 0.5
+        var padding_amount = avg_dimension * texture_padding
+
+        # Create padded region rect with negative coordinates to expand the area
+        var padded_region = Rect2(Vector2(-padding_amount, -padding_amount), original_size + Vector2(padding_amount * 2, padding_amount * 2))
+
+        # Enable region and set the padded rect
+        region_enabled = true
+        region_rect = padded_region
+
+        # Copy centering and offset from source (region rect handles the positioning)
+        centered = source_sprite.centered
+        offset = source_sprite.offset
+    else:
+        # No padding - copy normally
+        region_enabled = source_sprite.region_enabled
+        if region_enabled:
+            region_rect = source_sprite.region_rect
+        centered = source_sprite.centered
+        offset = source_sprite.offset
 
 
 func _copy_transform_like() -> void:
@@ -234,13 +265,11 @@ func _copy_transform_like() -> void:
         return
 
     # Check if we're a direct child of the source sprite
-    var is_direct_child = get_parent() == source_sprite
+    var is_descendant = source_sprite.is_ancestor_of(self)
 
-    if is_direct_child:
-        # When we're a direct child, we inherit the parent's scale automatically
-        # So we only copy rotation, not scale or global_transform
-        rotation = source_sprite.rotation
-        # Apply shadow scale multiplier to the inherited scale
+    if is_descendant:
+        # When we're a direct child, we inherit the parent's scale and rotation automatically
+        # So we don't copy them - just apply our shadow scale multiplier
         scale = Vector2.ONE * shadow_scale
     else:
         # When we're not a direct child, copy everything normally and apply shadow scale
@@ -291,8 +320,8 @@ func set_opacity(v: float) -> void:
     _apply_opacity()
 
 
-func set_erosion_mode(v: bool) -> void:
-    erosion_mode = v
+func set_internal_feather(v: bool) -> void:
+    internal_feather = v
 
 
 func set_blur_radius(v: float) -> void:
@@ -309,6 +338,12 @@ func set_quality(v: int) -> void:
 
 func set_tint(v: Color) -> void:
     tint = v
+
+
+func set_texture_padding(v: float) -> void:
+    texture_padding = v
+    # Mark texture as dirty to recopy with new padding
+    _tex_dirty = true
 
 
 # Optional convenience if you want to set tint & opacity together
