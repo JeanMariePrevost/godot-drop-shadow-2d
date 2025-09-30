@@ -63,26 +63,50 @@ void fragment() {
 
 	if (quality == 0) {
 	    // -----------------------------
-	    // SIMPLE CIRCULAR TAPER (Option B with adjustment)
-		// Special case since this uses an entirely differnt approach, where "blur" and "erosion" are the same: a feathered alpha
-		// O(1) so scales very well, _and_ is smooth for large sprites and large radius, unlike the other approaches
+	    // DYNAMIC ROUNDED RECTANGLE TAPER
+		// Special case that creates a rounded rectangle shadow effect with dynamic corner rounding
+		// O(1) so scales very well, _and_ is smooth for large sprites and large radius
 	    // -----------------------------
 	    vec2 tex_size = vec2(textureSize(TEXTURE, 0));
-	    vec2 center = vec2(0.5);
-
-	    // Distance from sprite center in pixels
-	    float dist_px = length((UV - center) * tex_size);
-
-	    // Max circular radius in pixels (inscribed circle)
-	    float max_r = 0.5 * min(tex_size.x, tex_size.y);
-
-	    // How far inside the edge this pixel is
-	    float dist_to_edge = max_r - dist_px;
+	    vec2 uv_px = UV * tex_size;  // Convert UV to pixel coordinates
+	    
+	    // Calculate distance to each edge in pixels
+	    float dist_to_left = uv_px.x;
+	    float dist_to_right = tex_size.x - uv_px.x;
+	    float dist_to_top = uv_px.y;
+	    float dist_to_bottom = tex_size.y - uv_px.y;
+	    
+	    // Dynamic corner radius based on texture dimensions (half the smallest side)
+	    float min_side = min(tex_size.x, tex_size.y);
+	    float corner_radius = min_side * 0.5;
+	    
+	    // For rounded rectangle: distance to nearest edge, but with corner rounding
+	    vec2 dist_to_edges = vec2(
+	        min(dist_to_left, dist_to_right),
+	        min(dist_to_top, dist_to_bottom)
+	    );
+	    
+	    // Apply corner rounding: if we're near a corner, use circular distance
+	    vec2 corner_center = vec2(
+	        dist_to_left < corner_radius && dist_to_right < corner_radius ? 0.0 : 0.0,
+	        dist_to_top < corner_radius && dist_to_bottom < corner_radius ? 0.0 : 0.0
+	    );
+	    
+	    // Distance to nearest edge (with corner rounding)
+	    float dist_to_edge;
+	    if (dist_to_edges.x < corner_radius && dist_to_edges.y < corner_radius) {
+	        // In corner region - use circular distance
+	        vec2 corner_dist = dist_to_edges - corner_radius;
+	        dist_to_edge = corner_radius - length(corner_dist);
+	    } else {
+	        // In edge region - use rectangular distance
+	        dist_to_edge = min(dist_to_edges.x, dist_to_edges.y);
+	    }
 
 	    // Fade band thickness scaled by constant
 	    float effective_radius = radius * RADIUS_SCALE_Q0;
 
-	    // Fade over the last `effective_radius` pixels
+	    // Fade over the last `effective_radius` pixels from the edges
 	    float fade = (effective_radius > 0.0)
 	        ? clamp(dist_to_edge / effective_radius, 0.0, 1.0)
 	        : 1.0;
