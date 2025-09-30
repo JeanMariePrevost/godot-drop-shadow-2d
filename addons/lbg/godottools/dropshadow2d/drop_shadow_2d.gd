@@ -331,6 +331,7 @@ func set_tint(v: Color) -> void:
 
 func set_texture_padding(v: float) -> void:
     texture_padding = v
+    update_texture_from_source_sprite()
 
 
 # Optional convenience if you want to set tint & opacity together

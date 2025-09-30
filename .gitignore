@@ -45,3 +45,7 @@ export_presets.cfg
 
 # Specific files
 TODO.md
+
+
+# Reinclude images directory
+!/images/**
