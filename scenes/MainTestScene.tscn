@@ -3,7 +3,7 @@
 [ext_resource type="Texture2D" uid="uid://cwc6q2o24fpiu" path="res://assets/2d/test_sprite.png" id="1_diby2"]
 [ext_resource type="Script" uid="uid://dttfwm0mro30k" path="res://scripts/nodes/SpriteFollowsMouse.gd" id="2_3sbmb"]
 [ext_resource type="Script" uid="uid://cbh4c363rwphj" path="res://addons/lbg/godottools/dropshadow2d/DropShadow2D.gd" id="3_5itpt"]
-[ext_resource type="Shader" uid="uid://dqkmm88jwkgot" path="res://addons/lbg/godottools/dropshadow2d/AdvancedBlur.gdshader" id="3_b6jhg"]
+[ext_resource type="Shader" uid="uid://dqkmm88jwkgot" path="res://addons/lbg/godottools/dropshadow2d/advanced_blur.gdshader" id="3_b6jhg"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_b6jhg"]
 shader = ExtResource("3_b6jhg")
