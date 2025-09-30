@@ -29,16 +29,44 @@ class_name DropShadow2D
 		_connect_source_signals()
 		_mark_all_dirty()
 
-## Whether to automatically copy the source sprite's z_index/sorting
-@export var use_source_sorting: bool = true
-## Whether to automatically mirror the source sprite's texture and frame
-@export var mirror_texture: bool = true
-## Whether to automatically mirror the source sprite's transform (position, rotation, scale)
-@export var mirror_transform: bool = true
-## Whether to automatically mirror the source sprite's visibility
-@export var mirror_visibility: bool = true
-## Whether to automatically follow the source sprite's horizontal and vertical flips
-@export var follow_flips: bool = true # hflip/vflip
+# --- Shadow Controls (mostly shader uniforms passthrough) ---
+## The distance between the shadow and the source sprite
+@export var distance: Vector2 = Vector2(3, 6):
+	set = set_distance
+
+## Scale multiplier for the shadow (1.0 = same size as source, >1.0 = larger shadow, <1.0 = smaller shadow)
+@export_range(0.1, 3.0, 0.01, "or_less", "or_greater") var shadow_scale: float = 1.05:
+	set = set_shadow_scale
+
+## The opacity of the shadow (same as using alpha on the modulate property)
+@export_range(0.0, 1.0, 0.01, "or_less", "or_greater") var opacity: float = 0.3:
+	set = set_opacity
+
+## Color override for the shadow (RGB=color, Alpha=strength 0.0-1.0)
+@export var tint: Color = Color(0.0, 0.0, 0.0, 1.0):
+	set = set_tint
+const TINT_COLOR_UNIFORM_NAME: String = "tint_color"  # Name of the uniform in the shader itself
+const TINT_STRENGTH_UNIFORM_NAME: String = "tint_strength"  # Name of the uniform in the shader itself
+
+# --- Shader Controls (optional, forwarded if present) ---
+## The radius of the blur effect in pixels
+@export_range(0, 50, 0.01, "or_less", "or_greater") var blur_radius: float = 4.0:
+	set = set_blur_radius
+const BLUR_RADIUS_UNIFORM_NAME: String = "radius"  # Name of the uniform in the shader itself
+
+## The strength of the blur effect (0.0 = no blur, 1.0 = full blur)
+@export_range(0.0, 1.0, 0.01, "or_less", "or_greater") var blur_strength: float = 0.5:
+	set = set_blur_strength
+const BLUR_STRENGTH_UNIFORM_NAME: String = "strength"  # Name of the uniform in the shader itself
+
+## Quality level for blur effects.
+## [br]0=Simple fade (fixed cost, scales well)
+## [br]1= Low quality blur (6 taps)
+## [br]2= Medium quality blur (12 taps)
+## [br]3= High quality blur (16 taps)
+@export_range(0, 3, 1) var quality: int = 2:
+	set = set_quality
+const QUALITY_UNIFORM_NAME: String = "quality"  # Name of the uniform in the shader itself
 
 ## Click this to force a refresh in editor if the shadow is not showing
 @export_tool_button("Force Refresh (Debug)", "Reload") var force_refresh_action: Callable = force_in_editor_refresh
@@ -50,50 +78,25 @@ func force_in_editor_refresh():
 		_process(0.0)
 
 
-# --- Shadow Controls (node-level) ---
-@export_group("Shadow Controls")
-## The distance between the shadow and the source sprite
-@export var distance: Vector2 = Vector2(6, 6):
-	set = set_distance
-
-## Scale multiplier for the shadow (1.0 = same size as source, >1.0 = larger shadow, <1.0 = smaller shadow)
-@export_range(0.1, 3.0, 0.01) var shadow_scale: float = 1.0:
-	set = set_shadow_scale
-
-## The opacity of the shadow (same as using alpha on the modulate property)
-@export_range(0.0, 1.0, 0.01) var opacity: float = 0.5:
-	set = set_opacity
-
-## Color override for the shadow (RGB=color, Alpha=strength 0.0-1.0)
-@export var tint: Color = Color(0.0, 0.0, 0.0, 1.0):
-	set = set_tint
-const TINT_COLOR_UNIFORM_NAME: String = "tint_color" # Name of the uniform in the shader itself
-const TINT_STRENGTH_UNIFORM_NAME: String = "tint_strength" # Name of the uniform in the shader itself
-
-# --- Shader Controls (optional, forwarded if present) ---
-## The radius of the blur effect in pixels
-@export_range(0, 50, 0.01) var blur_radius: float = 4.0:
-	set = set_blur_radius
-const BLUR_RADIUS_UNIFORM_NAME: String = "radius" # Name of the uniform in the shader itself
-
-## The strength of the blur effect (0.0 = no blur, 1.0 = full blur)
-@export_range(0.0, 1.0, 0.01) var blur_strength: float = 0.5:
-	set = set_blur_strength
-const BLUR_STRENGTH_UNIFORM_NAME: String = "strength" # Name of the uniform in the shader itself
-
-## Quality level for blur effects. 0=Simple fade (O(1) cost, scales well), 1-3=Multi-sample blur (higher cost, better quality)
-@export_range(0, 3, 1) var quality: int = 2:
-	set = set_quality
-const QUALITY_UNIFORM_NAME: String = "quality" # Name of the uniform in the shader itself
+@export_group("Extras Options")
+## Whether to automatically copy the source sprite's z_index/sorting
+@export var use_source_sorting: bool = true
+## Whether to automatically mirror the source sprite's texture and frame
+@export var mirror_texture: bool = true
+## Whether to automatically mirror the source sprite's transform (position, rotation, scale)
+@export var mirror_transform: bool = true
+## Whether to automatically mirror the source sprite's visibility
+@export var mirror_visibility: bool = true
+## Whether to automatically follow the source sprite's horizontal and vertical flips
+@export var follow_flips: bool = true  # hflip/vflip
 
 # --- Layering / Sorting ---
-@export_group("Z & Sorting")
-@export var z_bias := -1 # place below source by default
+@export var z_bias := -1  # place below source by default
 
 # --- Internals ---
 var _tex_dirty: bool = true
 var _vis_dirty: bool = true
-var _last_material: Material = null # Used to detect materials changes
+var _last_material: Material = null  # Used to detect materials changes
 var _shader: Shader = preload("res://shaders/DilationErosionBlur.gdshader")
 var _initialized: bool = false
 
@@ -102,15 +105,13 @@ func _ready() -> void:
 	_initialize()
 
 
-func _notification(_what: int) -> void:
-	if Engine.is_editor_hint() and _initialized == false:
-		_initialize() # Only force initialization in editor
-
-
 func _initialize() -> void:
 	if _initialized:
 		return
 	_initialized = true
+
+	if source_sprite == null and get_parent() is Sprite2D:
+		source_sprite = get_parent() as Sprite2D
 
 	if material == null:
 		# The blur of the shadow comes from a shader, so we need to create a shader material if it's not already set
@@ -208,7 +209,7 @@ func _copy_texture_like() -> void:
 		return
 	texture = source_sprite.texture
 	centered = source_sprite.centered
-	offset = offset # keep our own offset; just mirroring flag names
+	offset = offset  # keep our own offset; just mirroring flag names
 	hframes = source_sprite.hframes
 	vframes = source_sprite.vframes
 	frame = source_sprite.frame
